@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shelf Life Checker</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+
+<style>
+body { font-family: Arial; background: #e8f5e9; padding: 10px; }
+.container { background: white; padding: 15px; border-radius: 12px; }
+
+input, select {
+    height: 48px;
+    padding: 0 12px;
+    margin: 8px 0;
+    width: 100%;
+    font-size: 15px;
+    border-radius: 10px;
+    border: 1px solid #ccc;
+    box-sizing: border-box;
+}
+
+button {
+    padding: 12px;
+    margin: 8px 0;
+    width: 100%;
+    font-size: 14px;
+    border-radius: 10px;
+    background: #2e7d32;
+    color: white;
+    border: none;
+}
+
+.danger-btn { background: #c62828; }
+.ok { color: green; font-weight: bold; }
+.bad { color: red; font-weight: bold; }
+
+table { width: 100%; font-size: 12px; border-collapse: collapse; margin-top: 10px; }
+th, td { border: 1px solid #ddd; padding: 6px; text-align: center; }
+th { background: #2e7d32; color: white; }
+
+#suggestions {
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    max-height: 150px;
+    overflow-y: auto;
+    display: none;
+}
+
+#suggestions div { padding: 10px; cursor: pointer; }
+#suggestions div:hover { background: #e8f5e9; }
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h3>Shelf Life Checker</h3>
+
+<select id="storeSelect">
+<option value="">Select Store</option>
+<option>Lulu Trivandrum</option>
+<option>Lulu Kottiyam</option>
+<option>Lulu Kottayam</option>
+<option>Lulu Edappally</option>
+<option>Lulu Forum</option>
+<option>Lulu Thrissur</option>
+<option>Lulu Ymall</option>
+<option>Lulu Palakkad</option>
+<option>Lulu Calicut</option>
+</select>
+
+<input type="text" id="searchBox" placeholder="Search article...">
+<div id="suggestions"></div>
+
+<select id="articleSelect">
+<option value="">Select Article</option>
+</select>
+
+<input type="text" id="expiryDisplay" placeholder="Select expiry date" readonly>
+<input type="date" id="expiryDate" style="display:none;">
+
+<input type="number" id="quantity" placeholder="Enter quantity">
+
+<div id="output"></div>
+<button id="addBtn" style="display:none;" onclick="addToList()">Add to Report</button>
+
+<h4>Report</h4>
+
+<table id="reportTable">
+<thead>
+<tr>
+<th>Store</th><th>Code</th><th>Name</th><th>Expiry</th><th>Shelf Life %</th><th>Qty</th><th>❌</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+
+<h4 id="totalQty">Total Qty: 0</h4>
+
+<button onclick="exportExcel()">Download Excel</button>
+<button onclick="shareExcel()">Share Excel</button>
+
+<button onclick="exportPDF()">Download PDF</button>
+<button onclick="sharePDF()">Share PDF</button>
+
+<button onclick="sendWhatsApp()">Send WhatsApp Report</button>
+<button onclick="saveDraft()">Save Draft</button>
+
+<button class="danger-btn" onclick="clearAll()">Remove All</button>
+
+</div>
+
+<script>
+
+const data = [
+{code:"245932",name:"D/Horse Synthetic Vinegar 1L",shelfLife:360},
+{code:"196796",name:"D/Horse Synthetic Vinegar 500ml",shelfLife:360},
+{code:"1038143",name:"D/H Instant Rice Palada Mix 200g",shelfLife:180},
+{code:"1308518",name:"D/H Instnt Parip Prdhmn 200g",shelfLife:180},
+{code:"3780",name:"D/Horse Palada Payasam Mix 300g",shelfLife:180},
+{code:"3777",name:"D/H Rice Palada Payasam Mix 300g",shelfLife:180},
+{code:"3781",name:"D/Horse Semiya Pasyasam 300g",shelfLife:180},
+{code:"2376064",name:"Tender Coconut Payasam Mix 180g",shelfLife:120},
+{code:"102670",name:"D/Horse Instant Idiyappam 200g",shelfLife:360},
+{code:"102671",name:"D/Horse Instant Idiyappam 1kg",shelfLife:360},
+{code:"3785",name:"D/Horse Upuma 250g",shelfLife:180},
+{code:"2598270",name:"D/H Gluten Free Instant Rice Upuma 80g",shelfLife:120},
+{code:"3502",name:"D/Horse Rice Vermicelli 200g",shelfLife:360},
+{code:"3784",name:"D/Horse Avalose Powder 200g",shelfLife:150},
+{code:"2594765",name:"D/H Pickle Combo Pack",shelfLife:360},
+
+{code:"3673",name:"D/Horse Cut Mango Pickle 100g",shelfLife:360},
+{code:"3614",name:"D/Horse Cut Mango Pickle 150g",shelfLife:360},
+{code:"3652",name:"D/Horse Cut Mango Pickle 200g",shelfLife:360},
+{code:"3549",name:"D/Horse Cut Mango Pickle 400g",shelfLife:360},
+{code:"3519",name:"D/Horse Mango Pickle 500g",shelfLife:360},
+{code:"636247",name:"D/Horse Cut Mango Pickle 900g",shelfLife:360},
+{code:"278244",name:"D/Horse Corn Flour 150g",shelfLife:360},
+{code:"705015",name:"D/H Corn Flour 350g",shelfLife:360},
+
+{code:"3604",name:"D/Horse Dates Pickle 150g",shelfLife:360},
+{code:"3649",name:"D/Horse Dates Pickle 200g",shelfLife:360},
+{code:"3538",name:"D/Horse Dates Pickle 400g",shelfLife:360},
+
+{code:"3647",name:"D/Horse Fish Pickle 150g",shelfLife:360},
+{code:"3666",name:"D/Horse Fish Pickle 200g",shelfLife:360},
+{code:"3590",name:"D/Horse Fish Pickle 400g",shelfLife:360},
+{code:"3529",name:"D/Horse Fish Pickle 500g",shelfLife:360},
+
+{code:"3620",name:"D/Horse Garlic Pickle 150g",shelfLife:360},
+{code:"3656",name:"D/Horse Garlic Pickle 200g",shelfLife:360},
+{code:"3570",name:"D/Horse Garlic Pickle 400g",shelfLife:360},
+{code:"196793",name:"D/Horse Garlic Pickle 500g",shelfLife:360},
+
+{code:"1308514",name:"D/Horse Garlic Paste 200g",shelfLife:180},
+{code:"1308515",name:"D/Horse Ginger Garlic Paste 200g",shelfLife:180},
+
+{code:"3640",name:"D/Horse Ginger Pickle 150g",shelfLife:360},
+{code:"3582",name:"D/Horse Ginger Pickle 400g",shelfLife:360},
+{code:"1308516",name:"D/Horse Ginger Paste 200g",shelfLife:180},
+
+{code:"245934",name:"D/Horse Instant Ginger Coffee 150g",shelfLife:360},
+
+{code:"3578",name:"D/H Hot & Sweet Lime Pickle 400g",shelfLife:360},
+{code:"3670",name:"D/Horse Lime Pickle 100g",shelfLife:360},
+{code:"3612",name:"D/Horse Lime Pickle 150g",shelfLife:360},
+{code:"3658",name:"D/Horse Lime Pickle 200g",shelfLife:360},
+{code:"3546",name:"D/Horse Lime Pickle 400g",shelfLife:360},
+{code:"3525",name:"D/Horse Lime Pickle 500g",shelfLife:360},
+{code:"616930",name:"D/H Lime Pickle 900g",shelfLife:360},
+
+{code:"92881",name:"D/Horse Macaroni 400g",shelfLife:360},
+{code:"196792",name:"D/Horse Macaroni 200g",shelfLife:360},
+{code:"616836",name:"D/H Macroni 800g",shelfLife:360},
+
+{code:"3603",name:"D/Horse Kaduku Mango Pickle 400g",shelfLife:360},
+
+{code:"3643",name:"D/Horse Prawns Pickle 150g",shelfLife:360},
+{code:"3662",name:"D/Horse Prawns Pickle 200g",shelfLife:360},
+{code:"3585",name:"D/Horse Prawns Pickle 400g",shelfLife:360},
+{code:"3535",name:"D/Horse Prawns Pickle 500g",shelfLife:360},
+
+{code:"92862",name:"D/Horse Soya Chunks 200g",shelfLife:360},
+{code:"221254",name:"D/Horse Soya Chungs Nano 200g",shelfLife:360},
+
+{code:"3610",name:"D/Horse Tender Mango Pickle 150g",shelfLife:360},
+{code:"3654",name:"D/Horse Tender Mango Pickle 200g",shelfLife:360},
+{code:"3540",name:"D/Horse Tender Mango Pickle 400g",shelfLife:360},
+{code:"3532",name:"D/Horse Tender Mango Pickle 500g",shelfLife:360},
+
+{code:"3484",name:"D/Horse Rice Palada 200g",shelfLife:360},
+{code:"616847",name:"D/H Rice Palada 500g",shelfLife:360},
+
+{code:"3827",name:"D/Horse Aval Red 500g",shelfLife:180},
+{code:"3828",name:"D/Horse Aval Thick Red 500g",shelfLife:120},
+{code:"3825",name:"D/Horse Aval White 500g",shelfLife:180},
+{code:"705030",name:"D/H White Aval Thick 400g",shelfLife:90},
+
+{code:"3748",name:"D/Horse Biriyani Masala 100g",shelfLife:360},
+
+{code:"1648544",name:"D/H Brn Rich Mata Brkn Rice500gm",shelfLife:180},
+
+{code:"3869",name:"D/Horse Chakki Fresh Atta 1kg",shelfLife:90},
+{code:"521283",name:"D/H Chakki Fresh Atta 2kg",shelfLife:90},
+{code:"233957",name:"D/Horse Chakky Fresh Atta 5kg",shelfLife:90},
+
+{code:"3731",name:"D/Horse Chicken Masala 100g",shelfLife:360},
+
+{code:"3753",name:"D/Horse Chilly Powder 100g",shelfLife:360},
+{code:"3756",name:"D/Horse Chilly Powder 250g",shelfLife:360},
+{code:"3758",name:"D/Horse Chilly Powder 500g",shelfLife:360},
+{code:"3760",name:"D/Horse Chilly Powder 1kg",shelfLife:360},
+
+{code:"3831",name:"D/Horse Chef Mate 1kg",shelfLife:720},
+
+{code:"2594761",name:"D/H IPM Vadimatta Rice 50% Bran 1kg",shelfLife:180},
+{code:"2598269",name:"D/H IPM Vadimatta Rice 100% Bran1kg",shelfLife:180},
+
+{code:"3768",name:"D/Horse Coriander Powder 1kg",shelfLife:360},
+{code:"3762",name:"D/Horse Coriander Powder 100g",shelfLife:360},
+{code:"3764",name:"D/Horse Coriander Powder 250g",shelfLife:360},
+{code:"3766",name:"D/Horse Coriander Powder 500g",shelfLife:360},
+
+{code:"3832",name:"D/Horse Chemba Puttu Podi 1kg",shelfLife:180},
+{code:"3834",name:"D/Horse Chemba Puttu Podi 500g",shelfLife:180},
+{code:"3854",name:"D/Horse Corn Puttu Podi 500g",shelfLife:180},
+
+{code:"3749",name:"D/Horse Egg Masala 100g",shelfLife:360},
+
+{code:"3498",name:"D/Horse Easy Palappam 500g",shelfLife:90},
+{code:"3493",name:"D/Horse Easy Palappam 1kg",shelfLife:90},
+
+{code:"616842",name:"D/H Ribbon Ada 200g",shelfLife:360},
+
+{code:"3740",name:"D/Horse Fish Masala 100g",shelfLife:360},
+{code:"3750",name:"D/Horse Garam Masala 50g",shelfLife:360},
+
+{code:"1308517",name:"D/H 1Hour Idli Dosa Mix 500g",shelfLife:90},
+{code:"376847",name:"D/H Idiyappam Pwdr NormWater 1kg",shelfLife:180},
+{code:"337786",name:"D/Horse Idiyappam Powder 500g",shelfLife:180},
+
+{code:"1038144",name:"D/H Jaggery Powder 400gm",shelfLife:180},
+
+{code:"616926",name:"D/H Kashmiri Chilli Powder 500g",shelfLife:180},
+{code:"3775",name:"D/Horse Kashmiri Chilly Powder 100g",shelfLife:180},
+{code:"616922",name:"D/H Kashmiri Chilli Powder 250g",shelfLife:180},
+
+{code:"63736",name:"D/Horse Long Vermicelli 400g",shelfLife:360},
+
+{code:"3820",name:"D/Horse Matta Broken 1kg",shelfLife:360},
+{code:"3822",name:"D/Horse Matta Broken 500g",shelfLife:360},
+
+{code:"616897",name:"D/H Jeerakashala Rice 1kg",shelfLife:360},
+{code:"2231056",name:"JEERAKASHALA RICE 5KG",shelfLife:360},
+
+{code:"3736",name:"D/Horse Meat Masala 100g",shelfLife:360},
+
+{code:"705027",name:"D/H Pepper Powder 50g",shelfLife:360},
+{code:"3771",name:"D/Horse Pepper Powder 100g",shelfLife:360},
+
+{code:"3744",name:"D/Horse Pickle Powder 100g",shelfLife:360},
+
+{code:"3871",name:"D/Horse Pathiri Powder 1kg",shelfLife:180},
+
+{code:"3863",name:"D/Horse Roasted Rava 1kg",shelfLife:180},
+{code:"3866",name:"D/Horse Fried Rava 500g",shelfLife:180},
+
+{code:"3873",name:"D/Horse Ragi Powder 500g",shelfLife:120},
+{code:"705022",name:"D/H Ragi Nice Powder 1kg",shelfLife:120},
+{code:"3840",name:"D/Horse Ragi Puttu Podi 500g",shelfLife:120},
+
+{code:"3747",name:"D/Horse Rasam Masala 100g",shelfLife:360},
+
+{code:"2594763",name:"Double Horse Maida 500gm",shelfLife:90},
+{code:"2594762",name:"Double Horse Maida 1Kg",shelfLife:90},
+
+{code:"3838",name:"D/Horse White Rice Powder Appam 1kg",shelfLife:180},
+{code:"3839",name:"D/Horse White Rice Powder Appam 500g",shelfLife:180},
+{code:"233958",name:"D/Horse White Rice Flour 5kg",shelfLife:180},
+
+{code:"246141",name:"D/Horse Roasted White Rice Flour 1kg",shelfLife:180},
+{code:"246142",name:"D/Horse Roasted White Rice Flour 500g",shelfLife:180},
+
+{code:"3742",name:"D/Horse Sambar Powder 100g",shelfLife:360},
+
+{code:"3814",name:"D/Horse Wheat Broken 500g",shelfLife:180},
+{code:"3812",name:"D/Horse Samba Wheat Broken 1kg",shelfLife:180},
+{code:"3816",name:"D/Horse Wheat Broken Nice 500g",shelfLife:180},
+
+{code:"3769",name:"D/Horse Turmeric Powder 100g",shelfLife:360},
+{code:"3770",name:"D/Horse Turmeric Powder 250g",shelfLife:360},
+
+{code:"616934",name:"D/H Un Roasted Vermicelli 150g",shelfLife:240},
+{code:"3487",name:"D/Horse Roasted Vermicelli 200g",shelfLife:360},
+{code:"616855",name:"D/H Roasted Vermicelli 400g",shelfLife:360},
+{code:"616851",name:"D/H Roasted Vermicelli 800g",shelfLife:360},
+
+{code:"3746",name:"D/Horse Vegetable Masala 100g.",shelfLife:360},
+
+{code:"616905",name:"D/H Bansi Wheat Rava 500g",shelfLife:180},
+{code:"616902",name:"D/H Bansi Wheat Broken 500g",shelfLife:180},
+
+{code:"1114346",name:"D/H Wheat Puttu Podi 500g",shelfLife:180},
+{code:"3837",name:"D/Horse White Puttu Podi 500g",shelfLife:180},
+{code:"3835",name:"D/Horse White Puttu Podi 1kg",shelfLife:180},
+{code:"233973",name:"D/Horse White Puttu Podi 5kg",shelfLife:180},
+
+{code:"63732",name:"D/Horse Tamarind 500g",shelfLife:360},
+{code:"63728",name:"D/Horse Tamarind 200g",shelfLife:360},
+
+{code:"719132",name:"Double Horse Pappad 100gm",shelfLife:120},
+
+{code:"6016",name:"D/Horse P/Boiled RiceCherumani 5kg",shelfLife:180},
+{code:"6014",name:"D/Horse P/Boiled RiceCherumani 10kg",shelfLife:180},
+{code:"6020",name:"D/Horse Jaya Rice 5kg",shelfLife:180},
+{code:"6018",name:"D/Horse Jaya Rice 10kg",shelfLife:180},
+{code:"6026",name:"No Wash Jyothi Vadi Matta 5kg",shelfLife:180},
+{code:"6024",name:"No Wash Jyothi Vadi Matta 10kg",shelfLife:180},
+{code:"6026",name:"No Wash Jyothi Vadi Matta 5kg",shelfLife:180},
+{code:"6024",name:"No Wash Jyothi Vadi Matta 10kg",shelfLife:180},
+{code:"6031",name:"D/Horse Ponni Rice 5kg",shelfLife:180},
+{code:"6029",name:"D/Horse Ponni Rice 10kg",shelfLife:180},
+{code:"6035",name:"D/Horse Unda Matta 5kg",shelfLife:180},
+{code:"6033",name:"D/Horse Unda Matta10kg",shelfLife:180},
+{code:"6038",name:"D/Horse Single Matta Rice 5kg",shelfLife:120},
+{code:"6036",name:"D/Horse Single Matta Rice 10kg",shelfLife:120},
+{code:"6051",name:"D/Horse Surekha Rice 5kg",shelfLife:180},
+{code:"6046",name:"D/Horse Surekha Rice 10kg",shelfLife:180}
+];
+
+function formatDate(d){
+const dt=new Date(d);
+return `${String(dt.getDate()).padStart(2,'0')}-${String(dt.getMonth()+1).padStart(2,'0')}-${dt.getFullYear()}`;
+}
+
+function getReportName(){
+return window.savedReportName || `${storeSelect.value} Near Expiry Report ${formatDate(new Date())}`;
+}
+
+function load(list){
+articleSelect.innerHTML='<option value="">Select Article</option>';
+list.forEach(d=>{
+let o=document.createElement("option");
+o.value=d.code;
+o.text=d.code+" - "+d.name;
+articleSelect.appendChild(o);
+});
+}
+load(data);
+
+// SEARCH
+searchBox.addEventListener("input",function(){
+const v=this.value.toLowerCase();
+const box=document.getElementById("suggestions");
+
+if(!v){box.style.display="none";return;}
+
+const filtered=data.filter(d =>
+String(d.code).includes(v) ||
+(d.name && d.name.toLowerCase().includes(v))
+);
+
+box.innerHTML="";
+filtered.slice(0,10).forEach(item=>{
+const div=document.createElement("div");
+div.textContent=item.code+" - "+item.name;
+
+div.onclick=function(){
+articleSelect.value=item.code;
+searchBox.value=item.code+" - "+item.name;
+box.style.display="none";
+articleSelect.dispatchEvent(new Event("change"));
+};
+
+box.appendChild(div);
+});
+box.style.display="block";
+});
+
+// hide suggestions
+document.addEventListener("click",function(e){
+if(!e.target.closest("#searchBox") && !e.target.closest("#suggestions")){
+suggestions.style.display="none";
+}
+});
+
+let reportList=[];
+
+expiryDisplay.onclick=()=>expiryDate.showPicker();
+expiryDate.onchange=calculateShelfLife;
+
+// reset on product change
+articleSelect.addEventListener("change", function(){
+expiryDate.value="";
+expiryDisplay.value="";
+output.innerHTML="";
+output.className="";
+addBtn.style.display="none";
+quantity.value="";
+window.currentResult=null;
+});
+
+// ✅ FIXED CALCULATION
+function calculateShelfLife(){
+
+if(!storeSelect.value){
+alert("Please select store first");
+return;
+}
+
+const expiry=expiryDate.value;
+if(!expiry) return;
+
+expiryDisplay.value=formatDate(expiry);
+
+const item=data.find(d=>d.code===articleSelect.value);
+if(!item) return;
+
+const days=Math.ceil((new Date(expiry)-new Date())/(1000*60*60*24));
+const percent = (days / item.shelfLife) * 100;
+
+window.currentResult={
+store:storeSelect.value,
+code:item.code,
+name:item.name,
+expiry:formatDate(expiry),
+percent:percent.toFixed(2),
+qty:""
+};
+
+if(percent < 50){
+output.innerHTML=`⚠️ ${percent.toFixed(2)}% remaining<br>
+Liquidation needed – Please add to report<br>
+Total Shelf Life: ${item.shelfLife} days`;
+output.className="bad";
+addBtn.style.display="block";
+}else{
+output.innerHTML=`✅ ${percent.toFixed(2)}% remaining<br>
+Enough shelf life<br>
+Total Shelf Life: ${item.shelfLife} days`;
+output.className="ok";
+addBtn.style.display="none";
+}
+}
+
+// ADD
+function addToList(){
+if(!storeSelect.value){alert("Select store");return;}
+if(!quantity.value){alert("Enter qty");return;}
+
+currentResult.qty=quantity.value;
+reportList.push(currentResult);
+update();
+
+searchBox.value="";
+expiryDisplay.value="";
+expiryDate.value="";
+quantity.value="";
+output.innerHTML="";
+addBtn.style.display="none";
+}
+
+// UPDATE
+function update(){
+let total=0;
+reportTable.querySelector("tbody").innerHTML="";
+
+reportList.forEach((r,i)=>{
+total+=Number(r.qty);
+reportTable.querySelector("tbody").innerHTML+=`
+<tr>
+<td>${r.store}</td>
+<td>${r.code}</td>
+<td>${r.name}</td>
+<td>${r.expiry}</td>
+<td>${r.percent}%</td>
+<td>${r.qty}</td>
+<td><button onclick="removeItem(${i})">❌</button></td>
+</tr>`;
+});
+
+totalQty.innerText="Total Qty: "+total;
+}
+
+function removeItem(i){reportList.splice(i,1);update();}
+
+function clearAll(){
+reportList=[];
+localStorage.removeItem("reportDraft");
+update();
+}
+
+// EXPORT
+function generateCSV(){
+let csv="Store,Code,Name,Expiry,Shelf Life %,Qty\n";
+reportList.forEach(r=>{
+csv+=`${r.store},${r.code},${r.name},${r.expiry},${r.percent}%,${r.qty}\n`;
+});
+return new Blob([csv]);
+}
+
+function exportExcel(){
+const a=document.createElement("a");
+a.href=URL.createObjectURL(generateCSV());
+a.download=getReportName()+".csv";
+a.click();
+}
+
+// PDF
+function generatePDF(){
+const { jsPDF }=window.jspdf;
+const doc=new jsPDF();
+const rows=reportList.map(r=>[r.store,r.code,r.name,r.expiry,r.percent+"%",r.qty]);
+doc.text(getReportName(),14,15);
+doc.autoTable({head:[["Store","Code","Name","Expiry","Shelf Life %","Qty"]],body:rows,startY:20});
+return doc.output("blob");
+}
+
+function exportPDF(){
+const a=document.createElement("a");
+a.href=URL.createObjectURL(generatePDF());
+a.download=getReportName()+".pdf";
+a.click();
+}
+
+// SHARE (FIXED)
+async function sharePDF(){
+try{
+const file=new File([generatePDF()],getReportName()+".pdf",{type:"application/pdf"});
+if(navigator.share){
+await navigator.share({files:[file],title:getReportName()});
+}else fallbackShare();
+}catch(e){fallbackShare();}
+}
+
+async function shareExcel(){
+try{
+const file=new File([generateCSV()],getReportName()+".csv",{type:"text/csv"});
+if(navigator.share){
+await navigator.share({files:[file],title:getReportName()});
+}else fallbackShare();
+}catch(e){fallbackShare();}
+}
+
+function fallbackShare(){
+let text=getReportName()+"\n\n";
+reportList.forEach(r=>{
+text+=`${r.code} - ${r.name} | ${r.percent}% | Qty:${r.qty}\n`;
+});
+window.open("https://wa.me/?text="+encodeURIComponent(text));
+}
+
+// WhatsApp
+function sendWhatsApp(){
+let text=getReportName()+"\n\nItems:\n";
+reportList.forEach((r,i)=>{
+text+=`${i+1}. ${r.code} - ${r.name} | Exp: ${r.expiry} | ${r.percent}% | Qty ${r.qty}\n`;
+});
+text+=`\nTotal Qty: ${reportList.reduce((s,r)=>s+Number(r.qty),0)}`;
+window.open("https://wa.me/?text="+encodeURIComponent(text));
+}
+
+// SAVE
+function saveDraft(){
+window.savedReportName=getReportName();
+localStorage.setItem("reportDraft",JSON.stringify({
+name:window.savedReportName,
+items:reportList
+}));
+alert("Draft saved");
+}
+
+// LOAD
+window.onload=function(){
+const saved=localStorage.getItem("reportDraft");
+if(saved){
+const d=JSON.parse(saved);
+reportList=d.items||[];
+window.savedReportName=d.name;
+update();
+}
+};
+
+</script>
+
+</body>
+</html>
